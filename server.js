@@ -1,6 +1,6 @@
 const WebSocket = require('ws');
 
-// Credentials automatically pre-inserted for you
+// Credentials automatically pre-configured
 const appId = "33UinfoTB9UxIygsat44q"; 
 const token = "pat_97a4d5c569acbac8da72fa9696456aa00f357573fcc1cf11b51adce0f954761d"; 
 const stake = 10;
@@ -23,7 +23,9 @@ async function startCloudBot() {
         });
 
         if (!accountsRes.ok) {
-            throw new Error(`Account query failed: ${accountsRes.statusText}`);
+            const errData = await accountsRes.json();
+            const errMsg = errData.errors?.[0]?.message || accountsRes.statusText;
+            throw new Error(`Account query failed: ${errMsg}`);
         }
 
         const accountsData = await accountsRes.json();
@@ -49,7 +51,9 @@ async function startCloudBot() {
         });
 
         if (!otpRes.ok) {
-            throw new Error("Failed to retrieve authentication OTP.");
+            const errData = await otpRes.json();
+            const errMsg = errData.errors?.[0]?.message || otpRes.statusText;
+            throw new Error(`OTP retrieval failed: ${errMsg}`);
         }
 
         const otpData = await otpRes.json();
@@ -118,7 +122,7 @@ function evaluateStrategy(ws, tick) {
 
 function executeCloudTrade(ws, symbol, contractType) {
     const req = {
-        buy: 1,
+        buy: "1", // Corrected to string format to resolve the parameters error
         price: stake,
         parameters: {
             amount: stake,
