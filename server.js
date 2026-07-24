@@ -5,7 +5,7 @@ const http = require('http'); // Built-in Node HTTP module
 const appId = "33UinfoTB9UxIygsat44q"; 
 const token = process.env.DERIV_TOKEN; // Read privately from Render
 const stake = 10;
-const duration = 5; 
+const duration = 1; // Updated to 1 (minute) to pass validation
 
 let lastTickPrice = null;
 
@@ -145,7 +145,7 @@ function executeCloudTrade(ws, symbol, contractType) {
             contract_type: contractType,
             currency: 'USD',
             duration: parseInt(duration),
-            duration_unit: 't',
+            duration_unit: 'm', // Updated to minutes to comply with the new API
             symbol: symbol
         }
     };
