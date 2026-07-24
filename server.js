@@ -5,10 +5,9 @@ const http = require('http'); // Built-in Node HTTP module
 const appId = "33UinfoTB9UxIygsat44q"; 
 const token = process.env.DERIV_TOKEN; // Read privately from Render
 const stake = 10;
-const duration = 1; // 1 minute
+const duration = 5; // 5 ticks (standard and fully supported on Volatility Indices!)
 
 let lastTickPrice = null;
-let activeAccountId = null; // Stored globally to execute REST trades
 
 // Start a simple HTTP server so Render's health check passes instantly
 const port = process.env.PORT || 10000;
@@ -53,13 +52,13 @@ async function startCloudBot() {
         }
 
         const selectedAccount = accounts[0];
-        activeAccountId = selectedAccount.account_id; // Saved globally for trades
-        console.log(`Account successfully resolved: ${activeAccountId}`);
+        const accountId = selectedAccount.account_id;
+        console.log(`Account successfully resolved: ${accountId}`);
 
         console.log("Requesting authentication OTP...");
 
         // Step 2: Request WebSocket URL via OTP
-        const otpRes = await fetch(`https://api.derivws.com/trading/v1/options/accounts/${activeAccountId}/otp`, {
+        const otpRes = await fetch(`https://api.derivws.com/trading/v1/options/accounts/${accountId}/otp`, {
             method: 'POST',
             headers: {
                 'Deriv-App-ID': appId,
@@ -92,7 +91,15 @@ async function startCloudBot() {
             if (response.msg_type === 'tick') {
                 const tick = response.tick;
                 console.log(`[${tick.symbol}] Live Price: ${tick.quote}`);
-                evaluateStrategy(tick);
+                evaluateStrategy(ws, tick);
+            }
+
+            if (response.msg_type === 'buy') {
+                if (response.error) {
+                    console.log(`[Trade Error] Failed to execute: ${response.error.message}`);
+                } else {
+                    console.log(`[Executed] Trade placed! Contract ID: ${response.buy.contract_id}`);
+                }
             }
         });
 
@@ -113,7 +120,7 @@ async function startCloudBot() {
 }
 
 // Basic placeholder strategy rules
-function evaluateStrategy(tick) {
+function evaluateStrategy(ws, tick) {
     const currentPrice = tick.quote;
     if (!lastTickPrice) {
         lastTickPrice = currentPrice;
@@ -122,49 +129,28 @@ function evaluateStrategy(tick) {
 
     // Simplified Rise/Fall example trigger
     if (currentPrice > lastTickPrice) {
-        executeCloudTrade(tick.symbol, 'CALL');
+        executeCloudTrade(ws, tick.symbol, 'CALL');
     }
 
     lastTickPrice = currentPrice;
 }
 
-// Executed securely via REST POST request instead of WebSocket
-async function executeCloudTrade(symbol, contractType) {
-    if (!activeAccountId) return;
-
-    const body = {
-        amount: stake,
-        basis: 'stake',
-        contract_type: contractType,
-        currency: 'USD',
-        duration: parseInt(duration),
-        duration_unit: 'm', // Minutes
-        symbol: symbol
-    };
-
-    try {
-        console.log(`[REST Trade] Placing ${contractType} trade on ${symbol}...`);
-        const res = await fetch(`https://api.derivws.com/trading/v1/options/accounts/${activeAccountId}/orders`, {
-            method: 'POST',
-            headers: {
-                'Deriv-App-ID': appId,
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(body)
-        });
-
-        const resText = await res.text();
-        if (!res.ok) {
-            throw new Error(resText);
+// Placed directly over the authenticated WebSocket connection
+function executeCloudTrade(ws, symbol, contractType) {
+    const req = {
+        buy: "1", // Corrected to string "1" (NOT integer 1) to pass schema validation
+        price: stake,
+        parameters: {
+            amount: stake,
+            basis: 'stake',
+            contract_type: contractType,
+            currency: 'USD',
+            duration: parseInt(duration),
+            duration_unit: 't', // Ticks are fully supported on Volatility Indices via WebSocket!
+            symbol: symbol
         }
-
-        const data = JSON.parse(resText);
-        console.log(`[Executed] Trade placed successfully! Order ID: ${data.data.order_id}`);
-
-    } catch (error) {
-        console.log(`[Trade Error] Failed to execute: ${error.message}`);
-    }
+    };
+    ws.send(JSON.stringify(req));
 }
 
 // Start the server bot
