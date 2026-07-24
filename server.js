@@ -1,8 +1,8 @@
 const WebSocket = require('ws');
 
-// Credentials automatically pre-configured
+// Credentials read securely from Render Environment Variables
 const appId = "33UinfoTB9UxIygsat44q"; 
-const token = "pat_97a4d5c569acbac8da72fa9696456aa00f357573fcc1cf11b51adce0f954761d"; 
+const token = process.env.DERIV_TOKEN; // Read privately from Render
 const stake = 10;
 const duration = 5; 
 
@@ -10,6 +10,12 @@ let lastTickPrice = null;
 
 async function startCloudBot() {
     console.log("Starting server-side Deriv v2 cloud bot...");
+    
+    if (!token) {
+        console.error("Error: DERIV_TOKEN environment variable is missing on Render!");
+        return;
+    }
+
     console.log("Resolving trading accounts...");
 
     try {
@@ -23,9 +29,8 @@ async function startCloudBot() {
         });
 
         if (!accountsRes.ok) {
-            const errData = await accountsRes.json();
-            const errMsg = errData.errors?.[0]?.message || accountsRes.statusText;
-            throw new Error(`Account query failed: ${errMsg}`);
+            const errText = await accountsRes.text();
+            throw new Error(`Account query failed: ${errText}`);
         }
 
         const accountsData = await accountsRes.json();
@@ -51,9 +56,8 @@ async function startCloudBot() {
         });
 
         if (!otpRes.ok) {
-            const errData = await otpRes.json();
-            const errMsg = errData.errors?.[0]?.message || otpRes.statusText;
-            throw new Error(`OTP retrieval failed: ${errMsg}`);
+            const errText = await otpRes.text();
+            throw new Error(`OTP retrieval failed: ${errText}`);
         }
 
         const otpData = await otpRes.json();
@@ -122,7 +126,7 @@ function evaluateStrategy(ws, tick) {
 
 function executeCloudTrade(ws, symbol, contractType) {
     const req = {
-        buy: "1", // Corrected to string format to resolve the parameters error
+        buy: "1", // Corrected to string format to resolve parameters error
         price: stake,
         parameters: {
             amount: stake,
