@@ -1,4 +1,5 @@
 const WebSocket = require('ws');
+const http = require('http'); // Built-in Node HTTP module
 
 // Credentials read securely from Render Environment Variables
 const appId = "33UinfoTB9UxIygsat44q"; 
@@ -7,6 +8,16 @@ const stake = 10;
 const duration = 5; 
 
 let lastTickPrice = null;
+
+// Start a simple HTTP server so Render's health check passes instantly
+const port = process.env.PORT || 10000;
+const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Bot is running\n');
+});
+server.listen(port, () => {
+    console.log(`HTTP port listener active on port ${port}`);
+});
 
 async function startCloudBot() {
     console.log("Starting server-side Deriv v2 cloud bot...");
@@ -70,7 +81,6 @@ async function startCloudBot() {
 
         ws.on('open', () => {
             console.log("Cloud WebSocket connected! Subscribing to Volatility indices...");
-            // Subscribed to Volatility 75 and Volatility 100 which fully support Rise/Fall
             ws.send(JSON.stringify({ ticks: "R_75" }));
             ws.send(JSON.stringify({ ticks: "R_100" }));
         });
