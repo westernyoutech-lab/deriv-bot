@@ -69,9 +69,10 @@ async function startCloudBot() {
         const ws = new WebSocket(wsUrl);
 
         ws.on('open', () => {
-            console.log("Cloud WebSocket connected! Subscribing to market symbols...");
-            ws.send(JSON.stringify({ ticks: "BOOM1000" }));
-            ws.send(JSON.stringify({ ticks: "CRASH1000" }));
+            console.log("Cloud WebSocket connected! Subscribing to Volatility indices...");
+            // Subscribed to Volatility 75 and Volatility 100 which fully support Rise/Fall
+            ws.send(JSON.stringify({ ticks: "R_75" }));
+            ws.send(JSON.stringify({ ticks: "R_100" }));
         });
 
         ws.on('message', (data) => {
@@ -126,7 +127,7 @@ function evaluateStrategy(ws, tick) {
 
 function executeCloudTrade(ws, symbol, contractType) {
     const req = {
-        buy: "1", // Corrected to string format to resolve parameters error
+        buy: "1", 
         price: stake,
         parameters: {
             amount: stake,
