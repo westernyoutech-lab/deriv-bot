@@ -5,7 +5,7 @@ const http = require('http'); // Built-in Node HTTP module
 const appId = "33UinfoTB9UxIygsat44q"; 
 const token = process.env.DERIV_TOKEN; // Read privately from Render
 const stake = 10;
-const duration = 5; // 5 ticks (standard and fully supported on Volatility Indices!)
+const duration = 1; // Updated to 1 (minute) to pass validation
 
 let lastTickPrice = null;
 
@@ -138,7 +138,7 @@ function evaluateStrategy(ws, tick) {
 // Placed directly over the authenticated WebSocket connection
 function executeCloudTrade(ws, symbol, contractType) {
     const req = {
-        buy: "1", // Corrected to string "1" (NOT integer 1) to pass schema validation
+        buy: "1", 
         price: stake,
         parameters: {
             amount: stake,
@@ -146,7 +146,7 @@ function executeCloudTrade(ws, symbol, contractType) {
             contract_type: contractType,
             currency: 'USD',
             duration: parseInt(duration),
-            duration_unit: 't', // Ticks are fully supported on Volatility Indices via WebSocket!
+            duration_unit: 'm', // Changed to minutes to comply with the new WebSocket schema
             symbol: symbol
         }
     };
