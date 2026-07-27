@@ -5,7 +5,7 @@ const http = require('http'); // Built-in Node HTTP module
 const appId = "33UinfoTB9UxIygsat44q"; 
 const token = process.env.DERIV_TOKEN; // Read privately from Render
 const stake = 10;
-const duration = 1; // Updated to 1 (minute) to pass validation
+const duration = 1; // 1 minute (fully supported on Volatility Indices!)
 
 let lastTickPrice = null;
 
@@ -88,17 +88,36 @@ async function startCloudBot() {
         ws.on('message', (data) => {
             const response = JSON.parse(data);
             
+            // Handle Tick Updates
             if (response.msg_type === 'tick') {
                 const tick = response.tick;
                 console.log(`[${tick.symbol}] Live Price: ${tick.quote}`);
                 evaluateStrategy(ws, tick);
             }
 
+            // Handle Proposal Response (Step 1 of trade)
+            if (response.msg_type === 'proposal') {
+                if (response.error) {
+                    console.log(`[Proposal Error] Failed to get quote: ${response.error.message}`);
+                } else {
+                    const proposalId = response.proposal.id;
+                    const askPrice = response.proposal.ask_price;
+                    console.log(`[Proposal] Quote received: $${askPrice}. Buying contract...`);
+                    
+                    // Step 2: Execute trade using the proposal ID (No parameters required!)
+                    ws.send(JSON.stringify({
+                        buy: proposalId,
+                        price: askPrice
+                    }));
+                }
+            }
+
+            // Handle Buy Confirmation Response
             if (response.msg_type === 'buy') {
                 if (response.error) {
-                    console.log(`[Trade Error] Failed to execute: ${response.error.message}`);
+                    console.log(`[Trade Error] Failed to buy: ${response.error.message}`);
                 } else {
-                    console.log(`[Executed] Trade placed! Contract ID: ${response.buy.contract_id}`);
+                    console.log(`[Executed] Trade placed successfully! Contract ID: ${response.buy.contract_id}`);
                 }
             }
         });
@@ -135,20 +154,18 @@ function evaluateStrategy(ws, tick) {
     lastTickPrice = currentPrice;
 }
 
-// Placed directly over the authenticated WebSocket connection
+// Step 1 of trade: Request price proposal
 function executeCloudTrade(ws, symbol, contractType) {
+    console.log(`[Proposal] Requesting quote for ${contractType} on ${symbol}...`);
     const req = {
-        buy: "1", 
-        price: stake,
-        parameters: {
-            amount: stake,
-            basis: 'stake',
-            contract_type: contractType,
-            currency: 'USD',
-            duration: parseInt(duration),
-            duration_unit: 'm', // Changed to minutes to comply with the new WebSocket schema
-            symbol: symbol
-        }
+        proposal: 1,
+        amount: stake,
+        basis: 'stake',
+        contract_type: contractType,
+        currency: 'USD',
+        duration: parseInt(duration),
+        duration_unit: 'm', // Minutes
+        symbol: symbol
     };
     ws.send(JSON.stringify(req));
 }
